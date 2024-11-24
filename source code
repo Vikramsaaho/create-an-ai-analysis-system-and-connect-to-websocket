@@ -1,0 +1,64 @@
+pip install numpy pandas scikit-learn websockets
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+# Load dataset and train model
+data = load_iris()
+X_train, X_test, y_train, y_test = train_test_split(data.data, data.target, test_size=0.2, random_state=42)
+
+model = LogisticRegression(max_iter=200)
+model.fit(X_train, y_train)
+
+def analyze_data(input_data):
+    # Preprocess input data and predict
+    input_array = np.array(input_data).reshape(1, -1)
+    prediction = model.predict(input_array)
+    return {"prediction": int(prediction[0])}
+import asyncio
+import websockets
+import json
+
+async def handle_connection(websocket, path):
+    async for message in websocket:
+        try:
+            # Parse incoming data
+            data = json.loads(message)
+            input_data = data.get("input_data")
+
+            # Run the AI analysis
+            if input_data:
+                result = analyze_data(input_data)
+                response = {"status": "success", "result": result}
+            else:
+                response = {"status": "error", "message": "Invalid input data."}
+        except Exception as e:
+            response = {"status": "error", "message": str(e)}
+
+        # Send response back to client
+        await websocket.send(json.dumps(response))
+
+# Start the WebSocket server
+server = websockets.serve(handle_connection, "localhost", 8765)
+
+asyncio.get_event_loop().run_until_complete(server)
+asyncio.get_event_loop().run_forever()
+import asyncio
+import websockets
+import json
+
+async def send_data():
+    uri = "ws://localhost:8765"
+    async with websockets.connect(uri) as websocket:
+        # Example data for analysis
+        input_data = [5.1, 3.5, 1.4, 0.2]
+
+        # Send data to the server
+        await websocket.send(json.dumps({"input_data": input_data}))
+
+        # Receive and print the response
+        response = await websocket.recv()
+        print(f"Response: {response}")
+
+asyncio.get_event_loop().run_until_complete(send_data())
